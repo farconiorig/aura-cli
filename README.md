@@ -1,28 +1,128 @@
-# Aura CLI — Dota 2 Configuration Optimizer (Community Edition)
+# Aura CLI
 
-Aura CLI is an open-source tool for optimizing Dota 2 settings (`video.txt`, `autoexec.cfg`).
+[![Language](https://img.shields.io/badge/rust-2021-DEA584.svg)](https://www.rust-lang.org)
+[![VAC Status](https://img.shields.io/badge/VAC-100%25%20Safe-brightgreen.svg)](#безопасность-и-vac)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Proton-orange.svg)](#требования)
 
-## Capabilities
-- 100% VAC-Safe: Config-only optimization without memory modifications
-- Pre-configured competitive frametime presets (competitive, balanced, potato)
-- Automated backup creation and one-command rollback
+Легковесная консольная утилита на Rust для тонкой настройки движка Source 2 в Dota 2. 
 
-## Usage
+После каждого крупного патча Дота обрастает новыми частицами, мусорным кэшем и невидимыми утечками памяти. В спокойном лайнинге игра может выдавать 140 FPS, но в первом же замесе 5x5 с Refresher и Shivas фреймтайм улетает в стратосферу, а 1% Low проседает до 35 кадров.
+
+Aura CLI решает эту проблему без магии и сомнительного софта. Она находит ваши конфигурационные файлы Steam, наводит порядок в `video.txt`, генерирует чистый `autoexec.cfg` и вычищает гигабайты старых шейдерных дампов.
+
+---
+
+## Что внутри
+
+- **Нулевой риск блокировки**: никаких dll-инжектов, перехвата вызовов или чтения памяти процесса. Правятся исключительно официальные текстовые конфиги движка Valve.
+- **Стабильный фреймтайм**: тюнинг очередей рендера, синхронизации кадров и отключение скрытых источников микрофризов (`r_experimental_lag_limiter`, настройка буферов и т.д.).
+- **Три готовых пресета под разные задачи**: от киберспортивного баланса до режима «картошка» для слабых ноутбуков со встроенной графикой.
+- **Автоматический бэкап**: утилита делает слепок ваших текущих файлов перед любым изменением. Откат выполняется одной командой.
+- **Очистка диска**: удаление старых дампов вылетов (`.dmp`), бесконечных логов матчей и зависшего кэша шейдеров Vulkan/DXVK.
+
+---
+
+## Сравнение профилей
+
+| Параметр | Default (Valve) | Competitive | Balanced | Potato |
+|---|---|---|---|---|
+| **Тени** | Высокие | Минимальные | Средние | Выключены |
+| **Сглаживание (AA)** | SMAA / FXAA | Выключено | FXAA | Выключено |
+| **Качество текстур** | 100% | 100% | 100% | 50% |
+| **Эффекты травы и воды** | Включены | Выключены | Выключены | Выключены |
+| **Снижение инпут-лага** | Нет | `r_experimental_lag_limiter 1` | `r_experimental_lag_limiter 1` | Агрессивное |
+| **Цель** | Картинка из трейлера | Макс. стабильный 1% Low | Баланс визуала и FPS | Играбельные 60 FPS на встройке |
+
+---
+
+## Быстрый старт
+
+### Сборка из исходников
+
+Для сборки понадобится свежий компилятор Rust (`cargo`):
+
 ```bash
-# Check detected Dota 2 environment
-aura-cli --status
+git clone https://github.com/farconiorig/aura-cli.git
+cd aura-cli
+cargo build --release
+```
 
-# Apply competitive preset
+Готовый бинарный файл появится по пути `target/release/aura-cli`. Можно скопировать его в `~/.local/bin/` или положить в любую директорию из `$PATH`:
+
+```bash
+cp target/release/aura-cli ~/.local/bin/
+```
+
+---
+
+## Использование
+
+### 1. Проверка окружения
+
+Утилита автоматически найдет путь к Steam, директорию Dota 2 и все профили игроков:
+
+```bash
+aura-cli --status
+```
+
+Вывод:
+```text
+✦ AURA COMMUNITY CLI (Open-Source Edition)
+  100% VAC-Safe Configuration Tuning (video.txt & autoexec.cfg)
+
+  Директория игры: /home/farconi/.local/share/Steam/steamapps/common/dota 2 beta/game/dota
+  Steam:           /home/farconi/.local/share/Steam
+  Аккаунты:        2 обнаружено
+  autoexec.cfg:    Активен
+  video.txt [1463959761] : Оптимизирован
+```
+
+### 2. Применение настроек
+
+Выберите подходящий пресет:
+
+```bash
+# Рекомендуемый для соревновательных игр (максимальный отклик и стабильность):
 aura-cli --apply competitive
 
-# Clean shader cache
-aura-cli --clean-cache
+# Сбалансированный вариант с сохранением базовых эффектов:
+aura-cli --apply balanced
 
-# Rollback configurations to backup
+# Экстремальный режим для слабых ноутбуков или старых видеокарт:
+aura-cli --apply potato
+```
+
+### 3. Очистка мусора
+
+Source 2 оставляет гигабайты старых кэшей и логов после каждой сессии. Очистите их одной командой:
+
+```bash
+aura-cli --clean-cache
+```
+
+### 4. Откат изменений
+
+Если вы захотите вернуть свои исходные настройки, Aura восстановит оригинальные файлы из бэкапа:
+
+```bash
 aura-cli --restore
 ```
 
-## Building
-```bash
-cargo build --release
-```
+---
+
+## Безопасность и VAC
+
+Aura CLI не взаимодействует с оперативной памятью запущенной игры и не модифицирует исполняемые файлы. 
+
+Все изменения происходят на уровне двух легальных файлов конфигурации:
+1. `video.txt` — официальный файл настроек графики, который игра читает при старте.
+2. `autoexec.cfg` — стандартный скрипт консольных команд Source 2, предусмотренный самими разработчиками Valve с 2004 года.
+
+Использование утилиты на 100% легально и не нарушает соглашение подписчика Steam.
+
+---
+
+## Лицензия
+
+Проект распространяется под открытой лицензией [MIT](LICENSE). Вы можете свободно использовать, модифицировать и собирать утилиту под свои нужды.
